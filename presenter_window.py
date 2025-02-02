@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel, QComboBox, QPushButton
+# presenter_window.py
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QScrollArea, QHBoxLayout
 from PyQt5.QtCore import Qt
 
 class PresenterWindow(QMainWindow):
@@ -6,57 +7,105 @@ class PresenterWindow(QMainWindow):
         super().__init__()
         self.game = game
         self.spectator_window = spectator_window
-        self.setWindowTitle("Окно для ведущего")
-        self.resize(400, 300)
-        # Окно ведущего можно свободно перемещать
+        self.setWindowTitle("Presenter Window")
+        # Set a larger initial size to accommodate all song buttons.
+        self.resize(800, 600)
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout()
-        central.setLayout(layout)
+        self.main_layout = QVBoxLayout()
+        central.setLayout(self.main_layout)
 
-        # Информационная метка о текущем игроке и следующем очке
+        # Information label displaying current player and next point.
         self.info_label = QLabel("")
-        layout.addWidget(self.info_label)
+        self.main_layout.addWidget(self.info_label)
 
-        # Комбобокс для выбора песни
-        self.song_combo = QComboBox()
-        self.song_combo.addItems(self.game.songs)
-        layout.addWidget(self.song_combo)
+        # Create a scroll area for the song buttons.
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.main_layout.addWidget(self.scroll_area)
 
-        # Кнопка для присвоения очка выбранной песне
-        self.assign_button = QPushButton("Присвоить очко")
-        layout.addWidget(self.assign_button)
-        self.assign_button.clicked.connect(self.assign_point)
+        # Container for song buttons.
+        self.buttons_container = QWidget()
+        self.buttons_layout = QVBoxLayout()
+        self.buttons_container.setLayout(self.buttons_layout)
+        self.scroll_area.setWidget(self.buttons_container)
 
-        # Кнопка для завершения хода
-        self.finalize_button = QPushButton("Завершить ход")
-        layout.addWidget(self.finalize_button)
+        # Create buttons for each song in the original order.
+        self.create_song_buttons()
+
+        # Layout for control buttons.
+        self.control_layout = QHBoxLayout()
+        self.main_layout.addLayout(self.control_layout)
+
+        # Button to finalize the turn.
+        self.finalize_button = QPushButton("Finalize Turn")
+        self.control_layout.addWidget(self.finalize_button)
         self.finalize_button.clicked.connect(self.finalize_turn)
+
+        # Button to reset the current turn.
+        self.reset_button = QPushButton("Reset Turn")
+        self.control_layout.addWidget(self.reset_button)
+        self.reset_button.clicked.connect(self.reset_turn)
 
         self.update_info()
 
-    def update_info(self):
-        current_player = self.game.get_current_player() or "N/A"
-        if self.game.current_point_index < len(self.game.points_sequence):
-            next_point = self.game.points_sequence[self.game.current_point_index]
-        else:
-            next_point = "Ход завершён"
-        self.info_label.setText(f"Игрок: {current_player} | Следующее очко: {next_point}")
+    def create_song_buttons(self):
+        # Clear existing buttons if any.
+        for i in reversed(range(self.buttons_layout.count())):
+            widget = self.buttons_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        # Create a button for each song in original order.
+        for song in self.game.songs:
+            original_number = self.game.original_order[song] + 1
+            button_text = f"({original_number}) {song}"
+            button = QPushButton(button_text)
+            button.clicked.connect(lambda checked, s=song: self.assign_point(s))
+            self.buttons_layout.addWidget(button)
 
-    def assign_point(self):
-        selected_song = self.song_combo.currentText()
-        points_assigned = self.game.assign_point(selected_song)
+    def update_info(self):
+        if self.game.game_over:
+            info_text = "Game Over"
+        else:
+            current_player = self.game.get_current_player() or "N/A"
+            if self.game.current_point_index < len(self.game.points_sequence):
+                next_point = self.game.points_sequence[self.game.current_point_index]
+            else:
+                next_point = "Turn complete"
+            info_text = f"Player: {current_player} | Next Point: {next_point}"
+        self.info_label.setText(info_text)
+        # Also update spectator status cell.
+        self.spectator_window.update_status(info_text)
+
+    def assign_point(self, song):
+        if self.game.game_over:
+            self.info_label.setText("Game is over. No more points can be assigned.")
+            return
+        points_assigned = self.game.assign_point(song)
         if points_assigned is not None:
-            self.spectator_window.update_table()
+            # Instead of calling highlight_vote, update the last voted song so that it remains highlighted.
+            self.spectator_window.update_last_voted(song)
+            self.spectator_window.update_view()
             self.update_info()
         else:
-            self.info_label.setText("Все очки распределены. Завершите ход.")
+            self.info_label.setText("All points have been distributed. Finalize turn.")
 
     def finalize_turn(self):
+        if self.game.game_over:
+            self.info_label.setText("Game is over.")
+            return
         if self.game.is_turn_complete():
             self.game.finalize_turn()
-            self.spectator_window.update_table()
+            self.spectator_window.update_view()
             self.update_info()
         else:
-            self.info_label.setText("Еще не все очки распределены.")
+            self.info_label.setText("Not all points have been assigned yet.")
+
+    def reset_turn(self):
+        if self.game.game_over:
+            self.info_label.setText("Game is over.")
+            return
+        self.game.reset_turn()
+        self.spectator_window.update_view()
+        self.update_info()

@@ -3,14 +3,21 @@ from PyQt5.QtWidgets import QApplication
 from game import Game
 from spectator_window import SpectatorWindow
 from presenter_window import PresenterWindow
+from background_customizer import BackgroundCustomizer
 
 
 def main():
     app = QApplication(sys.argv)
-    # Инициализация игры с файлами songs.txt и players.txt
+    # Initialize the game with songs.txt and players.txt.
     game = Game("songs.txt", "players.txt")
 
     spectator_win = SpectatorWindow(game)
+
+    # Optionally apply a background customizer to the spectator window.
+    # For example, set a background color or provide a path to an image.
+    customizer = BackgroundCustomizer(background_image_path=None, background_color=None)
+    spectator_win.set_background(customizer)
+
     presenter_win = PresenterWindow(game, spectator_win)
 
     spectator_win.show()
