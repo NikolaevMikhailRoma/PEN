@@ -4,10 +4,15 @@ from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer
 from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QFont
 
 # Layout and style constants
-CELL_SPACING = 10
-MARGIN = 10
-INFO_HEIGHT = 50  # Height for the bottom info cell
+CELL_SPACING = 10    # vertical gap between cells
+MARGIN = 10          # margin for the container
+INFO_HEIGHT = 50     # Height for the bottom info cell
 
+# New constants for the voting scoreboard design:
+SONG_WIDTH = 800
+SONG_HEIGHT = 80
+LEFT_WIDTH = 100
+RIGHT_WIDTH = 700  # SONG_WIDTH = LEFT_WIDTH + RIGHT_WIDTH
 
 class SpectatorContainer(QWidget):
     def __init__(self, game, parent=None):
@@ -52,7 +57,7 @@ class SpectatorContainer(QWidget):
         # Create a horizontal linear gradient with shifting stops for a shimmering effect.
         gradient = QLinearGradient(0, 0, rect.width(), 0)
         color1 = QColor(30, 30, 60)  # Dark blue
-        color2 = QColor(80, 0, 80)  # Deep purple
+        color2 = QColor(80, 0, 80)    # Deep purple
         gradient.setColorAt(0.0, color1)
         gradient.setColorAt(self.gradient_offset, color2)
         gradient.setColorAt(1.0, color1)
@@ -60,10 +65,10 @@ class SpectatorContainer(QWidget):
 
     def update_layout(self, initial=False):
         container_width = self.width()
-        container_height = self.height()
+        # Center the voting scoreboard horizontally.
+        x_pos = (container_width - SONG_WIDTH) // 2
 
-        # --- Determine ordering ---
-        # Only update the ordering (i.e. re-sort) when the turn is complete.
+        # When the turn is complete, re-sort the songs.
         if self.game.is_turn_complete():
             self.cached_order = sorted(
                 self.game.songs,
@@ -71,29 +76,13 @@ class SpectatorContainer(QWidget):
                 reverse=True
             )
         sorted_songs = self.cached_order
-
         n = len(sorted_songs)
-        # For two columns: left column gets the first half, right column the rest.
-        left_count = (n + 1) // 2
-        right_count = n - left_count
-        max_rows = max(left_count, right_count)
-
-        # --- Allocate vertical space for songs ---
-        # Use the top two-thirds of the container for the songs.
-        available_songs_height = int(container_height * 2 / 3) - MARGIN
-        # Compute the row height so that max_rows cells and CELL_SPACING gaps fit evenly.
-        row_height = 0
-        if max_rows > 0:
-            row_height = (available_songs_height - (max_rows - 1) * CELL_SPACING) / max_rows
-
-        # --- Position left-column song cells ---
-        for i in range(left_count):
-            song = sorted_songs[i]
+        for i, song in enumerate(sorted_songs):
             new_rect = QRect(
-                MARGIN,
-                MARGIN + int(i * (row_height + CELL_SPACING)),
-                (container_width - 3 * MARGIN) // 2,
-                int(row_height)
+                x_pos,
+                MARGIN + i * (SONG_HEIGHT + CELL_SPACING),
+                SONG_WIDTH,
+                SONG_HEIGHT
             )
             cell = self.song_cells[song]
             if initial:
@@ -101,22 +90,8 @@ class SpectatorContainer(QWidget):
             else:
                 self.animate_move(cell, new_rect)
 
-        # --- Position right-column song cells ---
-        for i in range(right_count):
-            song = sorted_songs[left_count + i]
-            new_rect = QRect(
-                MARGIN * 2 + (container_width - 3 * MARGIN) // 2,
-                MARGIN + int(i * (row_height + CELL_SPACING)),
-                (container_width - 3 * MARGIN) // 2,
-                int(row_height)
-            )
-            cell = self.song_cells[song]
-            if initial:
-                cell.setGeometry(new_rect)
-            else:
-                self.animate_move(cell, new_rect)
-
-        # --- Position the info cell at the bottom of the screen ---
+        # Position the info cell at the bottom of the screen.
+        container_height = self.height()
         info_width = min(300, container_width - 20)
         info_x = (container_width - info_width) // 2
         info_y = container_height - INFO_HEIGHT - MARGIN
@@ -155,7 +130,6 @@ class SpectatorContainer(QWidget):
     # --- Inner Classes ---
     class InfoCell(QWidget):
         """A small info window with visible edges, positioned at the bottom of the screen."""
-
         def __init__(self, parent=None):
             super().__init__(parent)
             self.label = QLabel(self)
@@ -169,48 +143,76 @@ class SpectatorContainer(QWidget):
             )
 
         def update_status(self, text):
+            # Replace "Player:" with "Сейчас голосует:" in the status text.
+            text = text.replace("Player:", "Сейчас голосует:")
             self.label.setText(text)
 
         def resizeEvent(self, event):
             self.label.setGeometry(0, 0, self.width(), self.height())
 
     class SongCell(QWidget):
-        """Displays one song’s information on one line (number, title, and score—with current round in parentheses).
-           If the cell’s force_highlight flag is True, it remains highlighted even if its current score is zero.
         """
-
+        Displays one song’s information as a voting block.
+        The block is fixed at 800pt x 80pt and divided into:
+          - LEFT (100pt wide): Shows the total points (center-aligned, background HEX #1b0f2a)
+          - RIGHT (700pt wide): Shows the song details (left-aligned, background HEX #3b2643 at 50% opacity)
+        Awarded points (e.g. +1, +3, +6, +9) are shown in HEX #98efff.
+        The song name is split at the hyphen and only the first part is shown,
+        with an additional 10pt left padding.
+        """
         def __init__(self, song, original_number, parent=None):
             super().__init__(parent)
             self.song = song
             self.original_number = original_number
-            self.force_highlight = False  # Persistent highlight flag.
-            self.label = QLabel(self)
-            self.label.setAlignment(Qt.AlignCenter)
-            font = QFont("Arial", 14)
-            self.label.setFont(font)
-            # Neat dark semi-transparent background with a gray border.
-            self.default_color = "rgba(50, 50, 50, 180)"
-            self.highlight_color = "rgba(100, 100, 200, 220)"
-            self.setStyleSheet(f"background-color: {self.default_color}; border: 1px solid gray;")
-            self.label.setStyleSheet("color: white;")
+            self.force_highlight = False  # (Not used in this version but preserved for further extensions.)
+
+            # Create two labels for the two visual sectors.
+            self.left_label = QLabel(self)
+            self.right_label = QLabel(self)
+
+            # Set alignments for each sector.
+            self.left_label.setAlignment(Qt.AlignCenter)
+            self.right_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            # Enable rich text formatting so HTML tags are rendered.
+            self.right_label.setTextFormat(Qt.RichText)
+
+            # Set the specified font: Helvetica Neue Bold, 40pt.
+            font = QFont("Helvetica Neue", 40, QFont.Bold)
+            self.left_label.setFont(font)
+            self.right_label.setFont(font)
+
+            # Set fixed geometry for the two sectors.
+            self.left_label.setGeometry(0, 0, LEFT_WIDTH, SONG_HEIGHT)
+            self.right_label.setGeometry(LEFT_WIDTH, 0, RIGHT_WIDTH, SONG_HEIGHT)
+
+            # Apply the background colors.
+            self.left_label.setStyleSheet("background-color: #1b0f2a; color: white;")
+            # For 50% opacity, we use rgba with alpha 127 (out of 255).
+            self.right_label.setStyleSheet("background-color: rgba(59, 38, 67, 127); color: white;")
 
         def update_data(self, total, current):
-            # Display the combined score; if current round points exist, show them in parentheses.
+            # Compute the display total.
             display_total = total + current
+            # LEFT sector: display the total points.
+            self.left_label.setText(str(display_total))
+            # Process the song name: split at the hyphen and keep only the first part.
+            song_name = self.song.split('-')[0].strip()
+            # RIGHT sector: song details (original number and song title)
+            # Add 10pt spacing before the song name.
             if current:
-                text = f"({self.original_number}) {self.song} | {display_total} ({current})"
+                text = (
+                    f"  "
+                    f"<span style='padding-left:10pt;'>{song_name}</span>  "
+                    f"<span style='color:#98efff;'>+{current}</span>"
+                )
             else:
-                text = f"({self.original_number}) {self.song} | {display_total}"
-            self.label.setText(text)
-            # If the song received any current points or if force_highlight is True, highlight the cell.
-            if current > 0 or self.force_highlight:
-                self.setStyleSheet(f"background-color: {self.highlight_color}; border: 1px solid gray;")
-            else:
-                self.setStyleSheet(f"background-color: {self.default_color}; border: 1px solid gray;")
+                text = f"   <span style='padding-left:10pt;'>{song_name}</span>"
+            self.right_label.setText(text)
 
         def resizeEvent(self, event):
-            self.label.setGeometry(0, 0, self.width(), self.height())
-
+            # Ensure the left and right sectors remain correctly sized if the cell is resized.
+            self.left_label.setGeometry(0, 0, LEFT_WIDTH, self.height())
+            self.right_label.setGeometry(LEFT_WIDTH, 0, self.width() - LEFT_WIDTH, self.height())
 
 class SpectatorWindow(QMainWindow):
     def __init__(self, game):
