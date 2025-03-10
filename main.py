@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt5 import QtWidgets
 from game import Game
 from spectator_window import SpectatorWindow
 from presenter_window import PresenterWindow
@@ -7,7 +7,7 @@ from background_customizer import BackgroundCustomizer
 
 
 def main():
-    app = QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     # Initialize the game with songs.txt and players.txt.
     game = Game("songs.txt", "players.txt")
 

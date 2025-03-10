@@ -1,8 +1,7 @@
 # presenter_window.py
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QScrollArea, QHBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5 import QtWidgets, QtCore
 
-class PresenterWindow(QMainWindow):
+class PresenterWindow(QtWidgets.QMainWindow):
     def __init__(self, game, spectator_window):
         super().__init__()
         self.game = game
@@ -11,23 +10,23 @@ class PresenterWindow(QMainWindow):
         # Set a larger initial size to accommodate all song buttons.
         self.resize(600, 600)
 
-        central = QWidget()
+        central = QtWidgets.QWidget()
         self.setCentralWidget(central)
-        self.main_layout = QVBoxLayout()
+        self.main_layout = QtWidgets.QVBoxLayout()
         central.setLayout(self.main_layout)
 
         # Information label displaying current player and next point.
-        self.info_label = QLabel("")
+        self.info_label = QtWidgets.QLabel("")
         self.main_layout.addWidget(self.info_label)
 
         # Create a scroll area for the song buttons.
-        self.scroll_area = QScrollArea()
+        self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.main_layout.addWidget(self.scroll_area)
 
         # Container for song buttons.
-        self.buttons_container = QWidget()
-        self.buttons_layout = QVBoxLayout()
+        self.buttons_container = QtWidgets.QWidget()
+        self.buttons_layout = QtWidgets.QVBoxLayout()
         self.buttons_container.setLayout(self.buttons_layout)
         self.scroll_area.setWidget(self.buttons_container)
 
@@ -35,16 +34,16 @@ class PresenterWindow(QMainWindow):
         self.create_song_buttons()
 
         # Layout for control buttons.
-        self.control_layout = QHBoxLayout()
+        self.control_layout = QtWidgets.QHBoxLayout()
         self.main_layout.addLayout(self.control_layout)
 
         # Button to finalize the turn.
-        self.finalize_button = QPushButton("Finalize Turn")
+        self.finalize_button = QtWidgets.QPushButton("Finalize Turn")
         self.control_layout.addWidget(self.finalize_button)
         self.finalize_button.clicked.connect(self.finalize_turn)
 
         # Button to reset the current turn.
-        self.reset_button = QPushButton("Reset Turn")
+        self.reset_button = QtWidgets.QPushButton("Reset Turn")
         self.control_layout.addWidget(self.reset_button)
         self.reset_button.clicked.connect(self.reset_turn)
 
@@ -60,7 +59,7 @@ class PresenterWindow(QMainWindow):
         for song in self.game.songs:
             original_number = self.game.original_order[song] + 1
             button_text = f"({original_number}) {song}"
-            button = QPushButton(button_text)
+            button = QtWidgets.QPushButton(button_text)
             button.clicked.connect(lambda checked, s=song: self.assign_point(s))
             self.buttons_layout.addWidget(button)
 
