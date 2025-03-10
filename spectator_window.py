@@ -4,15 +4,21 @@ from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer
 from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QFont
 
 # Layout and style constants
-CELL_SPACING = 10    # vertical gap between cells
-MARGIN = 10          # margin for the container
-INFO_HEIGHT = 50     # Height for the bottom info cell
+CELL_SPACING = 15    # vertical gap between cells
+MARGIN = 30          # margin for the container
+TOP_MARGIN = 50      # Additional top margin for the container
+INFO_HEIGHT = 60     # Height for the bottom info cell
 
 # New constants for the voting scoreboard design:
-SONG_WIDTH = 800
-SONG_HEIGHT = 80
-LEFT_WIDTH = 100
-RIGHT_WIDTH = 700  # SONG_WIDTH = LEFT_WIDTH + RIGHT_WIDTH
+SONG_WIDTH = 600     # Increased width for better text fitting
+SONG_HEIGHT = 90     # Slightly taller cells
+LEFT_WIDTH = 120     # Wider left section for scores
+RIGHT_WIDTH = 480    # SONG_WIDTH = LEFT_WIDTH + RIGHT_WIDTH
+COLUMN_SPACING = 40  # Increased horizontal spacing between columns
+
+# Default window size optimized for 1920x1080 displays
+DEFAULT_WINDOW_WIDTH = 1600
+DEFAULT_WINDOW_HEIGHT = 900
 
 class SpectatorContainer(QWidget):
     def __init__(self, game, parent=None):
@@ -65,9 +71,8 @@ class SpectatorContainer(QWidget):
 
     def update_layout(self, initial=False):
         container_width = self.width()
-        # Center the voting scoreboard horizontally.
-        x_pos = (container_width - SONG_WIDTH) // 2
-
+        container_height = self.height()
+        
         # When the turn is complete, re-sort the songs.
         if self.game.is_turn_complete():
             self.cached_order = sorted(
@@ -75,15 +80,44 @@ class SpectatorContainer(QWidget):
                 key=lambda s: self.game.total_scores[s] + self.game.current_scores[s],
                 reverse=True
             )
+        
         sorted_songs = self.cached_order
         n = len(sorted_songs)
+        
+        # Calculate total width needed for two columns
+        total_columns_width = (2 * SONG_WIDTH) + COLUMN_SPACING
+        
+        # Calculate starting x position to center the two columns
+        start_x = (container_width - total_columns_width) // 2
+        
+        # Calculate how many songs go in each column
+        # First column gets ceiling of half if odd number of songs
+        songs_in_first_column = (n + 1) // 2
+        
         for i, song in enumerate(sorted_songs):
+            # Determine which column this song belongs to
+            if i < songs_in_first_column:
+                # First column
+                column_index = 0
+                row_index = i
+            else:
+                # Second column
+                column_index = 1
+                row_index = i - songs_in_first_column
+            
+            # Calculate x position based on column
+            x_pos = start_x + column_index * (SONG_WIDTH + COLUMN_SPACING)
+            
+            # Calculate y position based on row within column, adding TOP_MARGIN
+            y_pos = TOP_MARGIN + MARGIN + row_index * (SONG_HEIGHT + CELL_SPACING)
+            
             new_rect = QRect(
                 x_pos,
-                MARGIN + i * (SONG_HEIGHT + CELL_SPACING),
+                y_pos,
                 SONG_WIDTH,
                 SONG_HEIGHT
             )
+            
             cell = self.song_cells[song]
             if initial:
                 cell.setGeometry(new_rect)
@@ -91,8 +125,7 @@ class SpectatorContainer(QWidget):
                 self.animate_move(cell, new_rect)
 
         # Position the info cell at the bottom of the screen.
-        container_height = self.height()
-        info_width = min(300, container_width - 20)
+        info_width = min(400, container_width - 40)  # Wider info cell
         info_x = (container_width - info_width) // 2
         info_y = container_height - INFO_HEIGHT - MARGIN
         self.info_cell.setGeometry(info_x, info_y, info_width, INFO_HEIGHT)
@@ -153,12 +186,12 @@ class SpectatorContainer(QWidget):
     class SongCell(QWidget):
         """
         Displays one song's information as a voting block.
-        The block is fixed at 800pt x 80pt and divided into:
-          - LEFT (100pt wide): Shows the total points (center-aligned, background HEX #1b0f2a)
-          - RIGHT (700pt wide): Shows the song details (left-aligned, background HEX #3b2643 at 50% opacity)
+        The block is divided into:
+          - LEFT: Shows the total points (center-aligned, background HEX #1b0f2a)
+          - RIGHT: Shows the song details (left-aligned, background HEX #3b2643 at 50% opacity)
         Awarded points (e.g. +1, +3, +6, +9) are shown in HEX #98efff.
         The song name is split at the hyphen and only the first part is shown,
-        with an additional 10pt left padding.
+        with additional left padding.
         """
         def __init__(self, song, original_number, parent=None):
             super().__init__(parent)
@@ -188,7 +221,7 @@ class SpectatorContainer(QWidget):
             # Apply the background colors.
             self.left_label.setStyleSheet("background-color: #1b0f2a; color: white;")
             # For 50% opacity, we use rgba with alpha 127 (out of 255).
-            self.right_label.setStyleSheet("background-color: rgba(59, 38, 67, 127); color: white;")
+            self.right_label.setStyleSheet("background-color: rgba(59, 38, 67, 127); color: white; padding-left: 15px;")
 
         def update_data(self, total, current):
             # Compute the display total.
@@ -199,7 +232,7 @@ class SpectatorContainer(QWidget):
             song_name = self.song.split('-')[0].strip()
             
             # RIGHT sector: song details (original number and song title)
-            # Add 10pt spacing before the song name using Qt's spacing mechanisms
+            # Add spacing before the song name using Qt's spacing mechanisms
             # We'll use a non-breaking space (&nbsp;) for consistent spacing
             spacing = "&nbsp;" * 5  # Each &nbsp; is approximately 2pt in width
             
@@ -211,7 +244,7 @@ class SpectatorContainer(QWidget):
             self.right_label.setText(text)
             
             # Ensure the right label has proper margins
-            self.right_label.setContentsMargins(10, 0, 0, 0)
+            self.right_label.setContentsMargins(15, 0, 0, 0)
 
         def resizeEvent(self, event):
             # Ensure the left and right sectors remain correctly sized if the cell is resized.
@@ -223,7 +256,7 @@ class SpectatorWindow(QMainWindow):
         super().__init__()
         self.game = game
         self.setWindowTitle("Spectator Window")
-        self.resize(800, 600)  # A large, resizable window
+        self.resize(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)  # Optimized for 1920x1080 displays
 
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)

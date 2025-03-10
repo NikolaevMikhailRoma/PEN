@@ -9,7 +9,7 @@ class PresenterWindow(QMainWindow):
         self.spectator_window = spectator_window
         self.setWindowTitle("Presenter Window")
         # Set a larger initial size to accommodate all song buttons.
-        self.resize(800, 600)
+        self.resize(600, 600)
 
         central = QWidget()
         self.setCentralWidget(central)

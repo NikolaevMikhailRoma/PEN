@@ -1,0 +1,3 @@
+# Add 10pt spacing from the left side before the names of the songs in spectator_window. Look at the code carefully I don't understand this sintax
+# It needs two columns of the songs at the spectator_window, of course with sorting and current animation
+Нужно чтобы было две колонки в окне для зрителей
