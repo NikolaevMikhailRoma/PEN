@@ -152,7 +152,7 @@ class SpectatorContainer(QWidget):
 
     class SongCell(QWidget):
         """
-        Displays one song’s information as a voting block.
+        Displays one song's information as a voting block.
         The block is fixed at 800pt x 80pt and divided into:
           - LEFT (100pt wide): Shows the total points (center-aligned, background HEX #1b0f2a)
           - RIGHT (700pt wide): Shows the song details (left-aligned, background HEX #3b2643 at 50% opacity)
@@ -197,17 +197,21 @@ class SpectatorContainer(QWidget):
             self.left_label.setText(str(display_total))
             # Process the song name: split at the hyphen and keep only the first part.
             song_name = self.song.split('-')[0].strip()
+            
             # RIGHT sector: song details (original number and song title)
-            # Add 10pt spacing before the song name.
+            # Add 10pt spacing before the song name using Qt's spacing mechanisms
+            # We'll use a non-breaking space (&nbsp;) for consistent spacing
+            spacing = "&nbsp;" * 5  # Each &nbsp; is approximately 2pt in width
+            
             if current:
-                text = (
-                    f"  "
-                    f"<span style='padding-left:10pt;'>{song_name}</span>  "
-                    f"<span style='color:#98efff;'>+{current}</span>"
-                )
+                text = f"{spacing}{song_name}&nbsp;&nbsp;<span style='color:#98efff;'>+{current}</span>"
             else:
-                text = f"   <span style='padding-left:10pt;'>{song_name}</span>"
+                text = f"{spacing}{song_name}"
+                
             self.right_label.setText(text)
+            
+            # Ensure the right label has proper margins
+            self.right_label.setContentsMargins(10, 0, 0, 0)
 
         def resizeEvent(self, event):
             # Ensure the left and right sectors remain correctly sized if the cell is resized.
