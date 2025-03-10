@@ -8,7 +8,7 @@ TOP_MARGIN = 50      # Additional top margin for the container
 INFO_HEIGHT = 80     # Increased height for the bottom info cell
 
 # New constants for the voting scoreboard design:
-SONG_WIDTH = 600     # Increased width for better text fitting
+SONG_WIDTH = 700     # Increased width for better text fitting
 SONG_HEIGHT = 90     # Slightly taller cells
 LEFT_WIDTH = 120     # Wider left section for scores
 RIGHT_WIDTH = 480    # SONG_WIDTH = LEFT_WIDTH + RIGHT_WIDTH
